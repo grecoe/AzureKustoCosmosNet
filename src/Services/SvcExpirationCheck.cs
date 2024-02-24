@@ -41,6 +41,15 @@ namespace SubscriptionCleanupUtils.Services
             while (!stoppingToken.IsCancellationRequested)
             {
                 ////////////////////////////////////////////////////////////////////////////////////////
+                /// Most data goes to cosmos so we have history of what we've done. 
+                IEventLogger eventLogger = new EventLogWriter(
+                    this._tokenProvider.Credential,
+                    this.ServiceSettings.EventLogSettings);
+                eventLogger.Service = "SvcExpirationCheck";
+
+                eventLogger.LogInfo("Starting execution");
+
+                ////////////////////////////////////////////////////////////////////////////////////////
                 /// Get ADME instances from Prod/NonProd Kusto stores. Data used when an expiring RG
                 /// that is to be deleted is actually an ADME Instance. The data will be used to clear
                 /// out the Cosmos data and DNS settings as is done in SvcAdmeCleanup, however, this 
@@ -48,20 +57,18 @@ namespace SubscriptionCleanupUtils.Services
                 /// execution.
                 /// 
                 /*
-                _logger.LogInformation("Load ADME Data from Kusto...");
+                _consoleLogger.LogInformation("Load ADME Data from Kusto...");
                 List<ADMEResourcesDTO> admeResources = SvcUtilsCommon.GetADMEInstanceDataFromKusto(
                     this._tokenProvider,
                     this._mapper,
                     this.ServiceSettings);
+                eventLogger.LogInfo($"Loaded {admeResources.Count} resources from Kusto");
                 */
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Collect Subscriptions to be processed.
                 _logger.LogInformation("Get service tree listed subscription information...");
-                // ODD string[] limitList = new string[] { "b0844137-4c2f-4091-b7f1-bc64c8b60e9c" };
-                // ENGG string[] limitList = new string[] { "c99e2bf3-1777-412b-baba-d823676589c2" };
-                // string[] limitList = new string[] { "015ab1e4-bd82-4c0d-ada9-0f9e9c68e0c4" };
                 string[] limitList = null;
 
 
@@ -72,9 +79,11 @@ namespace SubscriptionCleanupUtils.Services
                     limitList
                     );
 
-                // ********** DEBUG **********
-                SvcUtilsCustomLogging.ReportSubscriptions(this._logger, subscriptionResults);
-                // ********** DEBUG **********
+                eventLogger.LogInfo("Options Subscription filter", limitList);
+                eventLogger.LogInfo("Reachable Subscriptions",
+                    subscriptionResults.Subscriptions.Select(x => x.ServiceSubscriptionsDTO.SubscriptionName));
+                eventLogger.LogInfo("UnReachable Subscriptions",
+                    subscriptionResults.UnreachableSubscriptions.Select(x => x.SubscriptionName));
 
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Iterate each sub marking resource groups where neccesary. Cleanup, until better 

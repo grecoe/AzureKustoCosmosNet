@@ -14,8 +14,6 @@ namespace SubscriptionCleanupUtils
     {
         public static void Main(string[] args)
         {
-            //CosmosTest test = new CosmosTest();
-
             // Kusto data mappers for ADME Cleanup task. If you add more of queries/results
             // you will need to update this configuration to map the new classes. 
             AutoMapper.IConfigurationProvider configuration = new MapperConfiguration(cfg =>

@@ -15,6 +15,7 @@ namespace SubscriptionCleanupUtils.Models
         public ServiceTreeSettings ServiceTreeSettings { get; private set; }
         public ExecutionSettings ExecutionSettings { get; private set; }
         public DNSSettings DNSSettings { get; private set; }
+        public EventLogSettings EventLogSettings { get; private set; }
 
         public CosmosSettings CosmosSettings { get; private set; }
 
@@ -48,6 +49,12 @@ namespace SubscriptionCleanupUtils.Models
             if (this.DNSSettings == null)
             {
                 throw new ArgumentNullException(nameof(this.DNSSettings));
+            }
+
+            this.EventLogSettings = configuration.GetSection(EventLogSettings.SECTION).Get<EventLogSettings>();
+            if (this.EventLogSettings == null)
+            {
+                throw new ArgumentNullException(nameof(this.EventLogSettings));
             }
         }
     }
