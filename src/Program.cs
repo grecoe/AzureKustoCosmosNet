@@ -9,6 +9,7 @@ namespace SubscriptionCleanupUtils
     using System.Data;
     using SubscriptionCleanupUtils.Domain;
     using SubscriptionCleanupUtils.Models.Kusto;
+    using SubscriptionCleanupUtils.Models;
 
     public class Program
     {
@@ -29,21 +30,21 @@ namespace SubscriptionCleanupUtils
             // Actual build
             var builder = Host.CreateApplicationBuilder(args);
 
-            // ADME problem instance cleanup
-            builder.Services.AddHostedService<SvcADMECleanup>();
+            // Each service has it's onw flags on whether they should run or not, just launch 
+            // them all, but we'll use our own running state so when all background services 
+            // finish the application will terminate
+            BackgroundServiceRunningState appModel = new BackgroundServiceRunningState();
+            appModel.RegisterBackgroundService<SvcADMECleanup>();
+            appModel.RegisterBackgroundService<SvcExpirationCheck>();
+            appModel.RegisterBackgroundService<SvcLiveView>();
 
-            /// WARNING WARNING - This isn't fully baked because
-            /// - It will not protect anything except managed groups or ones with delete=false tag
-            ///   meaning , for example Azure Default group, will be wiped if tags are not kept in place. 
-            ///   Even if allowed to run, it will ONLY tag untagged groups with the expiration tag and 
-            ///   report what would have happened because the delete logic is commented out.
-            /// - It is not complete. If an ADME instance is a target for expiration, there is more work
-            ///   to do like updating Cosmos and removing DNS records. 
-            // builder.Services.AddHostedService<SvcExpirationCheck>();
-            /// WARNING WARNING
+            builder.Services.AddHostedService<SvcADMECleanup>();
+            builder.Services.AddHostedService<SvcExpirationCheck>();
+            builder.Services.AddHostedService<SvcLiveView>();
 
             builder.Services.AddSingleton<SubscriptionCleanupUtils.Domain.Interface.ITokenProvider, TokenProvider>();
             builder.Services.AddSingleton<AutoMapper.IMapper>(mapper);
+            builder.Services.AddSingleton<BackgroundServiceRunningState>(appModel);
 
             var host = builder.Build();
             host.Run();

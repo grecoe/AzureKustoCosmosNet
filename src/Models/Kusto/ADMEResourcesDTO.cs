@@ -5,9 +5,9 @@ namespace SubscriptionCleanupUtils.Models.Kusto
 {
     internal class DataPartitionDTO
     {
-        public string DataPartition { get; set; }
-        public string ManagedRG { get; set; }
-        public string ProvisioningState { get; set; }
+        public string DataPartition { get; set; } = string.Empty;
+        public string ManagedRG { get; set; } = string.Empty;
+        public string ProvisioningState { get; set; } = string.Empty;
     }
 
     internal class ADMEResourcesDTO
@@ -58,16 +58,15 @@ namespace SubscriptionCleanupUtils.Models.Kusto
                     Partitions=tostring(Partitions)
         ";
 
-        public string InstanceName { get; set; }
-        public string Environment { get; set; }
-        public string ResourceId { get; set; }
-        public string ProvisioningState { get; set; }
-        public string DNSName { get; set; }
-        //public List<DataPartitionDTO> Partitions { get; set; } = new List<DataPartitionDTO>();
-        public string Version { get; set; }
-        public string ComputeRg { get; set; }
-        public string ComputeState { get; set; }
-        public string Partitions { get; set; }
+        public string InstanceName { get; set; } = string.Empty;
+        public string Environment { get; set; } = string.Empty;
+        public string ResourceId { get; set; } = string.Empty;
+        public string ProvisioningState { get; set; } = string.Empty;
+        public string DNSName { get; set; } = string.Empty;
+        public string Version { get; set; } = string.Empty;
+        public string ComputeRg { get; set; } = string.Empty;
+        public string ComputeState { get; set; } = string.Empty;
+        public string Partitions { get; set; } = string.Empty;
 
         public List<DataPartitionDTO>? GetDataPartitions()
         {
@@ -93,9 +92,11 @@ namespace SubscriptionCleanupUtils.Models.Kusto
             bool investigate = false;
             foreach (ADMEResourcesDTO dto in records)
             {
+#pragma warning disable CS8604 
                 List<string> provisioningStates = dto.GetDataPartitions()
                     .Select(x => x.ProvisioningState)
                     .ToList();
+#pragma warning restore CS8604 
                 provisioningStates.Add(dto.ProvisioningState);
 
                 List<string> validStates = provisioningStates

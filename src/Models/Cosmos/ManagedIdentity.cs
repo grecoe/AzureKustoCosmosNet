@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using Newtonsoft.Json;
@@ -103,4 +105,6 @@
             DefaultValueHandling = DefaultValueHandling.Ignore)]
         public Dictionary<string, UserAssignedIdentityProperties> UserAssignedIdentities { get; set; }
     }
+
+#pragma warning restore CS8618
 }

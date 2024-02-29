@@ -9,13 +9,13 @@ namespace SubscriptionCleanupUtils.Models
     {
         public string InstanceName { get; set; }
         public string SubType { get; set; }
-        public AzureResourceGroup Resource { get; set; }
+        public AzureResourceGroup ResourceGroup { get; set; }
 
         public ADMEResource(string name, string subType, AzureResourceGroup group)
         {
             this.InstanceName = name;
             this.SubType = subType;
-            this.Resource = group;
+            this.ResourceGroup = group;
         }
     }
 }

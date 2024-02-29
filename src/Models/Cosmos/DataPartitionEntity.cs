@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using System;
     using Newtonsoft.Json;
 
@@ -72,4 +74,6 @@
         [JsonProperty(PropertyName = "dataPartitionResourceNamesSuffix")]
         public string DataPartitionResourceNamesSuffix { get; set; }
     }
+
+#pragma warning restore CS8618
 }

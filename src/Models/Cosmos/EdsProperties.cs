@@ -18,7 +18,7 @@
         /// Gets or sets customers keyvault url .
         /// </summary>
         [JsonProperty(PropertyName = "keyvaultUrl")]
-        public string KeyvaultUrl { get; set; }
+        public string KeyvaultUrl { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the boolean flag for isEdsEnabled .

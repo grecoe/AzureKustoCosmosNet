@@ -7,17 +7,17 @@ namespace SubscriptionCleanupUtils.Services
     using SubscriptionCleanupUtils.Domain;
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
-    using SubscriptionCleanupUtils.Models.Kusto;
 
     internal class SvcExpirationCheck : BackgroundService
     {
         #region Private ReadOnly variables passed in
-        private readonly ILogger<SvcExpirationCheck> _logger;
+        private readonly ILogger<SvcExpirationCheck> _consoleLogger;
         private readonly ITokenProvider _tokenProvider;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly IHostApplicationLifetime _applicationLifetime;
         private ServiceSettings ServiceSettings { get; set; }
+        private BackgroundServiceRunningState RunningState { get; set; }
         #endregion
 
         public SvcExpirationCheck(
@@ -25,51 +25,47 @@ namespace SubscriptionCleanupUtils.Services
             IConfiguration configuration,
             IHostApplicationLifetime appLifetime,
             ITokenProvider tokenProvider,
-            IMapper mapper)
+            IMapper mapper,
+            BackgroundServiceRunningState runningState)
         {
             this._applicationLifetime = appLifetime;
             this._configuration = configuration;
             this._tokenProvider = tokenProvider;
             this._mapper = mapper;
-            this._logger = logger;
+            this._consoleLogger = logger;
 
             this.ServiceSettings = new ServiceSettings(this._configuration);
+            this.RunningState = runningState;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+#pragma warning disable CS8602 
+            if (this.ServiceSettings.ExecutionSettings.ExpirationService.IsActive == false)
+            {
+                _consoleLogger.LogInformation("ResourceGroup Group Expiration Service is not active. Exiting...");
+                await this.RunningState.StopBackgroundService(this, stoppingToken, this._applicationLifetime);
+                return;
+            }
+#pragma warning restore CS8602 
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Most data goes to cosmos so we have history of what we've done. 
+#pragma warning disable CS8604 // Possible null reference argument.
                 IEventLogger eventLogger = new EventLogWriter(
                     this._tokenProvider.Credential,
                     this.ServiceSettings.EventLogSettings);
+#pragma warning restore CS8604 // Possible null reference argument.
                 eventLogger.Service = "SvcExpirationCheck";
 
                 eventLogger.LogInfo("Starting execution");
 
                 ////////////////////////////////////////////////////////////////////////////////////////
-                /// Get ADME instances from Prod/NonProd Kusto stores. Data used when an expiring RG
-                /// that is to be deleted is actually an ADME Instance. The data will be used to clear
-                /// out the Cosmos data and DNS settings as is done in SvcAdmeCleanup, however, this 
-                /// additional functionality may never make it here, so commented out for brevity in 
-                /// execution.
-                /// 
-                /*
-                _consoleLogger.LogInformation("Load ADME Data from Kusto...");
-                List<ADMEResourcesDTO> admeResources = SvcUtilsCommon.GetADMEInstanceDataFromKusto(
-                    this._tokenProvider,
-                    this._mapper,
-                    this.ServiceSettings);
-                eventLogger.LogInfo($"Loaded {admeResources.Count} resources from Kusto");
-                */
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////
                 /// Collect Subscriptions to be processed.
-                _logger.LogInformation("Get service tree listed subscription information...");
-                string[] limitList = null;
+                _consoleLogger.LogInformation("Get service tree listed subscription information...");
+                string[]? limitList = null;
 
 
                 SubscriptionResults subscriptionResults = SvcUtilsCommon.GetNonProdServiceSubscriptions(
@@ -91,21 +87,38 @@ namespace SubscriptionCleanupUtils.Services
                 /// 
                 foreach (AzureSubscription sub in subscriptionResults.Subscriptions)
                 {
-                    _logger.LogInformation(
+                    eventLogger.Subscription = sub.ServiceSubscriptionsDTO.SubscriptionName;
+                    _consoleLogger.LogInformation(
                         "Managing subscription {subname}",
                         sub.ServiceSubscriptionsDTO.SubscriptionName
                         );
 
-                    // ************************************** GROUP EXPIRATION ************************************** 
-
                     ////////////////////////////////////////////////////////////////////////////////////////
                     /// Manage expiration tagging and data collection of what is expired. 
                     ///
-                    _logger.LogInformation("Verify group expiration data...");
-                    GroupExpirationResult expirationTaggingResults = this.ManageResourceGroupExpirations(sub);
+                    _consoleLogger.LogInformation("Verify group expiration data...");
+                    GroupExpirationResult expirationTaggingResults;
+                    try
+                    {
+                        expirationTaggingResults = this.ManageResourceGroupExpirations(sub);
+                    }
+                    catch(Exception ex)
+                    {
+                        eventLogger.LogException($"Exception checking groups for {sub.ServiceSubscriptionsDTO.SubscriptionName}", ex);
+                        continue;
+                    } 
 
                     // ********** DEBUG **********
-                    SvcUtilsCustomLogging.ReportGroupExpirationTagging(this._logger, expirationTaggingResults);
+                    List<string> expired = expirationTaggingResults.ExpiredGroups.Select(x => x.Name).ToList();
+                    Dictionary<string, List<string>> subLayout = new Dictionary<string, List<string>>()
+                    {
+                        { "Recently Tagged" , expirationTaggingResults.TaggedGroups},
+                        { "Unable To Tag" , expirationTaggingResults.TagFailureGroups},
+                        { "Expired But Protected" , expirationTaggingResults.ExpiredButProtectedGroups},
+                        { "Previous Delete Attempts" , expirationTaggingResults.PreviousDeleteAttemptGroups},
+                        { "Expired" , expired},
+                    };
+                    eventLogger.LogInfo("Expiration Scanning Results", subLayout);
                     // ********** DEBUG **********
 
                     //*********************************************************************************************
@@ -114,72 +127,29 @@ namespace SubscriptionCleanupUtils.Services
                     // this.DeleteResourceGroups(expirationTaggingResults.ExpiredGroups);
                     // **** WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING 
                     //*********************************************************************************************
-
-                    // ************************************** GROUP EXPIRATION ************************************** 
-
-                    /*
-                      Example Output Running this on C99
-
-                          {
-                            *** WHAT HAD A EXPRIATION TAG ADDED TO IT ****
-                            "Recently Tagged": [
-                              "AzSecPackAutoConfigRG",
-                              "Compute-rg-it1708591054335-hnnuij",
-                              "Compute-rg-it1708595985203-tavuae",
-                              "RGServiceITPvtEndpointAuto1170859566393212745",
-                              "RGServiceITPvtEndpointAutoPA17086095040294927"
-                            ],
-
-                            *** ATTEMPTS TO ADD TAGS BUT ARE LOCKED ***
-                            "Unable To Tag": [
-                              "Compute-rg-Jan29test-dxamlg",
-                              "DataPartition-rg-Jan29test-c123cghf456fgty67yh76-dxamlg",
-                              "synapseworkspace-managedrg-32819e66-a0b5-4c37-9748-76dfe079c83d",
-                              "synapseworkspace-managedrg-fe4b5e0a-84f1-4288-953d-c6f0d8ab1f5c",
-                              "managed-rg-preeti",
-                              "Compute-rg-it1700510575982-mptjkk",
-                              "DataPartition-rg-it1700510575982-dp1-mptjkk",
-                              "DataPartition-rg-sept4ck3-d-tlbtoc",
-                              "DataPartition-rg-sept4ck3-c-tlbtoc",
-                              "Compute-rg-sept4ck3-tlbtoc",
-                              "Compute-rg-sept4ck4-xwuhew",
-                              "DataPartition-rg-dagit3-dp1-rrjlxk",
-                              "Compute-rg-dagit3-rrjlxk",
-                              "laksfabric2",
-                              "Compute-rg-it1708601583812-aeycir",
-                              "DataPartition-rg-it1708604513727-dp1-qwmaao",
-                              "Compute-rg-it1708604513727-qwmaao",
-                              "MC_Compute-rg-it1708604513727-qwmaao_aks-6jmbb5qsq5xdq_eastus",
-                              "DataPartition-rg-it1708604513727-dp2-qwmaao"
-                            ],
-
-                            *** EXPIRED BUT PROTECTED (with delete=False tag OR is managed group) ***
-                            "Expired But Protected": [],
-
-                            *** GROUPS WE TRIED TO DELETE ALREADY BUT THEY FAILED FOR SOME REASON MOST LIKELY NETWORKING***
-                            "Previous Delete Attempts": [
-                              "Compute-rg-dwlasdagtest1-xkjksl",
-                              "Compute-rg-LASDAGtv23-vskben",
-                              "Compute-rg-nikms145-uignim",
-                              "aks80-cloud-onebox",
-                              "Compute-rg-afwhj-uryikc"
-                            ],
-                            "Expired": []
-                        }
-                     */
                 }
 
-                // Wait a predetermined (configurable) amount of time befoe re-running the service or kill it with 
-                // this._applicationLifetime.StopApplication();
-                await Task.Delay(
-                    this.ServiceSettings.ExecutionSettings.ExpirationService.GetTimeoutMilliseconds(),
-                    stoppingToken
-                    );
+                eventLogger.Subscription = string.Empty;
+                eventLogger.LogInfo("Expiration Service Execution Complete");
+                eventLogger.Dispose();
+
+                if( this.ServiceSettings.ExecutionSettings.ExpirationService.RunContinuous == false)
+                {
+                    await this.RunningState.StopBackgroundService(this, stoppingToken, this._applicationLifetime);
+                    return; 
+                }
+                else
+                {
+                    await Task.Delay(
+                        this.ServiceSettings.ExecutionSettings.ExpirationService.GetTimeoutMilliseconds(),
+                        stoppingToken
+                        );
+                }
             }
         }
 
         /// <summary>
-        /// The goal is to have all Resource Groups tagged with the tag "expiration" with a DateTime 
+        /// The goal is to have all ResourceGroup Groups tagged with the tag "expiration" with a DateTime 
         /// value indicating when the group expires, i.e. can be deleted. 
         /// 
         /// Scan all resource groups of an Azure Subscription and perform the following actions/data
@@ -203,9 +173,11 @@ namespace SubscriptionCleanupUtils.Services
         {
             GroupExpirationResult returnResult = new GroupExpirationResult();
 
+#pragma warning disable CS8602 
             DateTime latestExpiration = DateTime.UtcNow.AddDays(
                 this.ServiceSettings.ExecutionSettings.ExpirationService.DaysToExpiration
                 );
+#pragma warning restore CS8602 
 
             List<AzureResourceGroup> allSubGroups = subscription.GetResourceGroups();
 

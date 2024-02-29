@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿//
+// Copyright (c) 2024 Microsoft 
+//
 namespace SubscriptionCleanupUtils.Domain.Interface
 {
     internal interface IKustoRecord

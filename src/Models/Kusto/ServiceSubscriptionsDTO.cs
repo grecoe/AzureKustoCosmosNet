@@ -28,10 +28,10 @@ namespace SubscriptionCleanupUtils.Models.Kusto
             | project SubscriptionId, SubscriptionName, Environment=GetEnvironment(Environment), Status=GetStatus(Status)
         ";
 
-        public string SubscriptionId { get; set; }
-        public string SubscriptionName { get; set; }
-        public string Environment { get; set; }
-        public string Status { get; set; }
+        public string SubscriptionId { get; set; } = string.Empty;
+        public string SubscriptionName { get; set; } = string.Empty;
+        public string Environment { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
 
         public static string GetServiceTreeQuery(ServiceTreeSettings settings)
         {

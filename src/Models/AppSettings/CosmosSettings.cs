@@ -17,7 +17,7 @@
         /// </summary>
         public string Endpoint { get; set; } = string.Empty;
         /// <summary>
-        /// Azure Resource ID of the Cosmos.
+        /// Azure ResourceGroup ID of the Cosmos.
         /// </summary>
         public string Id { get; set; } = string.Empty;
         /// <summary>

@@ -87,16 +87,21 @@ namespace SubscriptionCleanupUtils.Domain
             // the appropriate settings. 
             foreach (ServiceSubscriptionsDTO dto in filteredList /* TODO: This is real ->nonProdActive */)
             {
-                AzureSubscription sub = null;
+#pragma warning disable CS0168 // Variable is declared but never used
                 try
                 {
-                    sub = new AzureSubscription(dto, _tokenProvider.GetAzureArmClient(dto.SubscriptionId));
-                    returnResults.Subscriptions.Add(sub);
+                    AzureSubscription sub = new AzureSubscription(dto, _tokenProvider.GetAzureArmClient(dto.SubscriptionId));
+                    if( sub != null)
+                    {
+                        returnResults.Subscriptions.Add(sub);
+                    }
                 }
                 catch (Azure.RequestFailedException e)
                 {
+                    // e ignored because it means we can't reach the sub, don't have permission.
                     returnResults.UnreachableSubscriptions.Add(dto);
                 }
+#pragma warning restore CS0168 // Variable is declared but never used
             }
 
             return returnResults;

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using System.Diagnostics.CodeAnalysis;
     using Newtonsoft.Json;
 
@@ -36,4 +38,6 @@ namespace SubscriptionCleanupUtils.Models.Cosmos
         [JsonProperty(PropertyName = "delegation_url", DefaultValueHandling = DefaultValueHandling.Ignore)]
         public string DelegationUrl { get; set; }
     }
+
+#pragma warning restore CS8618
 }

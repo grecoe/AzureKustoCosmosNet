@@ -1,4 +1,7 @@
-﻿namespace SubscriptionCleanupUtils.Domain.Interface
+﻿//
+// Copyright (c) 2024 Microsoft 
+//
+namespace SubscriptionCleanupUtils.Domain.Interface
 {
     using Azure.Core;
     using Azure.ResourceManager;

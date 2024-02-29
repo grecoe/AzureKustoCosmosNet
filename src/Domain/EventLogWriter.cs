@@ -31,6 +31,7 @@ CleanEventLog
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
     using SubscriptionCleanupUtils.Models.AppSettings;
+    using SubscriptionCleanupUtils.Models.Kusto;
 
     internal class EventLogWriter : KustoIngest, IEventLogger
     {
@@ -45,7 +46,7 @@ CleanEventLog
             TokenCredential tokenCredential,
             EventLogSettings eventLogSettings
             )
-            : base(tokenCredential, eventLogSettings)
+            : base(tokenCredential, new KustoIngestSettings(eventLogSettings))
         {
         }
 
@@ -77,7 +78,7 @@ CleanEventLog
 
         public void LogEvent(string level, string subscription, string service, string message, object? payload = null)
         {
-            EventLogRecord record = new EventLogRecord();
+            EventLogRecordDTO record = new EventLogRecordDTO();
             record.Timestamp = DateTime.UtcNow;
             record.Level = level;
             record.CorrelationId = this.CorrelationId;
@@ -99,7 +100,7 @@ CleanEventLog
 
             }
 
-            this.StreamRecord(record);
+            this.StreamRecords(new List<IKustoRecord>() { record });
         }
     }
 }

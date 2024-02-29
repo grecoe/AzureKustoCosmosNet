@@ -50,13 +50,17 @@
 
         public OEPResourceEntity? GetResource(string resourceId)
         {
-            QueryDefinition querydefinition = new QueryDefinition(string.Format(QUERY, resourceId));
-            List<OEPResourceEntity> results = 
-                (List<OEPResourceEntity>) this.QueryItemsAsync<OEPResourceEntity>(
-                    this.Resources, 
-                    querydefinition).Result;
+            if (this.Resources != null)
+            {
+                QueryDefinition querydefinition = new QueryDefinition(string.Format(QUERY, resourceId));
+                List<OEPResourceEntity> results =
+                    (List<OEPResourceEntity>)this.QueryItemsAsync<OEPResourceEntity>(
+                        this.Resources,
+                        querydefinition).Result;
 
-            return results.FirstOrDefault();
+                return results.FirstOrDefault();
+            }
+            return null;
         }
 
         public async Task<string> UpsertResource(OEPResourceEntity entity)
@@ -66,14 +70,19 @@
 
             string response = string.Empty;
 
-            try
+            if (this.Resources != null)
             {
-                response = await this.UpsertSerializedItemAsync(this.Resources, entity_str, key);
-            }
-            catch (Exception ex)
-            {
-                await Task.Delay(500);
-                response = await this.UpsertSerializedItemAsync(this.Resources, entity_str, key);
+#pragma warning disable CS0168 
+                try
+                {
+                    response = await this.UpsertSerializedItemAsync(this.Resources, entity_str, key);
+                }
+                catch (Exception ex)
+                {
+                    await Task.Delay(500);
+                    response = await this.UpsertSerializedItemAsync(this.Resources, entity_str, key);
+                }
+#pragma warning restore CS0168 
             }
 
             return response;
@@ -85,14 +94,19 @@
 
             string response = string.Empty;
 
-            try
+            if (this.DataPartitions != null)
             {
-                response = await this.UpsertSerializedItemAsync(this.DataPartitions, entity_str, key);
-            }
-            catch (Exception ex)
-            {
-                await Task.Delay(500);
-                response = await this.UpsertSerializedItemAsync(this.DataPartitions, entity_str, key);
+#pragma warning disable CS0168 
+                try
+                {
+                    response = await this.UpsertSerializedItemAsync(this.DataPartitions, entity_str, key);
+                }
+                catch (Exception ex)
+                {
+                    await Task.Delay(500);
+                    response = await this.UpsertSerializedItemAsync(this.DataPartitions, entity_str, key);
+                }
+#pragma warning restore CS0168 
             }
 
             return response;
@@ -101,10 +115,12 @@
         public List<DataPartitionsEntity> GetDataPartitions(string resourceId)
         {
             QueryDefinition querydefinition = new QueryDefinition(string.Format(QUERY, resourceId));
+#pragma warning disable CS8604 
             List<DataPartitionsEntity> results = 
                 (List<DataPartitionsEntity>)this.QueryItemsAsync<DataPartitionsEntity>(
                     this.DataPartitions, 
                     querydefinition).Result;
+#pragma warning restore CS8604 
 
             return  results;
         }

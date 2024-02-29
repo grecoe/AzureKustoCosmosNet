@@ -10,8 +10,8 @@ namespace SubscriptionCleanupUtils.Models.AppSettings
     {
         public const string SECTION = "EventLog";
 
-        public string IngestEndpoint { get; set; }
-        public string Database { get; set; }
-        public string Table { get; set; }
+        public string IngestEndpoint { get; set; } = string.Empty;
+        public string Database { get; set; } = string.Empty;
+        public string Table { get; set; } = string.Empty;
     }
 }

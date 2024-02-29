@@ -64,6 +64,7 @@
         private static async Task<string> GetPayload(ITokenProvider tokenProvider, string endpoint, string keyType)
         {
             string accessToken = string.Empty;
+#pragma warning disable CS0168 
             try
             {
                 accessToken = GetAccessToken(tokenProvider);
@@ -82,6 +83,7 @@
             {
                 throw;
             }
+#pragma warning restore CS0168 
 
             return payload;
         }

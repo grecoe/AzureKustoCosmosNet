@@ -20,7 +20,7 @@ namespace SubscriptionCleanupUtils.Models.AppSettings
         /// </summary>
         public string Subscription { get; set; } = string.Empty;
         /// <summary>
-        /// Resource Group the DNS Zone lives in.
+        /// ResourceGroup Group the DNS Zone lives in.
         /// </summary>
         public string ResourceGroup { get; set; } = string.Empty;
         /// <summary>

@@ -11,13 +11,13 @@ namespace SubscriptionCleanupUtils.Models
     /// </summary>
     internal class ServiceSettings
     {
-        public KustoSettings KustoSettings { get; private set; }
-        public ServiceTreeSettings ServiceTreeSettings { get; private set; }
-        public ExecutionSettings ExecutionSettings { get; private set; }
-        public DNSSettings DNSSettings { get; private set; }
-        public EventLogSettings EventLogSettings { get; private set; }
+        public KustoSettings? KustoSettings { get; private set; }
+        public ServiceTreeSettings? ServiceTreeSettings { get; private set; }
+        public ExecutionSettings? ExecutionSettings { get; private set; }
+        public DNSSettings? DNSSettings { get; private set; }
+        public EventLogSettings? EventLogSettings { get; private set; }
 
-        public CosmosSettings CosmosSettings { get; private set; }
+        public CosmosSettings? CosmosSettings { get; private set; }
 
         public ServiceSettings(IConfiguration configuration)
         {

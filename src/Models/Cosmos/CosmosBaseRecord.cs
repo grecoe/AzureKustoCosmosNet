@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using Newtonsoft.Json;
 
     public class CosmosBaseRecord
@@ -69,4 +71,6 @@
      "_ts": 1693759286        
          */
     }
+
+#pragma warning restore CS8618
 }

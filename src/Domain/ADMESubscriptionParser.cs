@@ -114,7 +114,7 @@ namespace SubscriptionCleanupUtils.Domain
         /// Parse down all resource groups from a subscription to identify the ADME specific
         /// resource groups for an ADME Instance, C1B or DCP.
         /// 
-        /// Bundles the underlying Azure Rsource Group into an ADME Resource and passes these 
+        /// Bundles the underlying Azure Rsource Group into an ADME ResourceGroup and passes these 
         /// back for futher processing. 
         /// </summary>
         /// <returns>List of actual ADME resources in a subscrption.</returns>

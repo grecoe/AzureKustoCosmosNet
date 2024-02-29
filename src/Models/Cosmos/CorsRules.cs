@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using Newtonsoft.Json;
@@ -67,4 +69,6 @@
         [JsonProperty(PropertyName = "maxAgeInSeconds")]
         public int? MaxAgeInSeconds { get; set; }
     }
+
+#pragma warning restore CS8618
 }

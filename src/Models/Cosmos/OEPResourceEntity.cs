@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8618
+
     using System;
     using System.Collections.Generic;
     using Microsoft.Azure.Cosmos.Core.Networking;
@@ -211,4 +213,6 @@
         [JsonProperty(PropertyName = "edsMetadata")]
         public EdsProperties EdsMetadata { get; set; }
     }
+
+#pragma warning restore CS8618
 }

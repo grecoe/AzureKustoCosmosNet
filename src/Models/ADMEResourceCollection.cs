@@ -7,9 +7,9 @@ namespace SubscriptionCleanupUtils.Models
 
     internal class ADMEResourceCollection
     {
-        public String ResourceType { get; set; } = String.Empty;
-        public string InstanceName { get; set; }
-        public ADMEResource Parent { get; set; }
+        public String ResourceType { get; set; } = string.Empty;
+        public string InstanceName { get; set; } = string.Empty;
+        public ADMEResource? Parent { get; set; }
         public List<ADMEResource> Clusters { get; set; } = new List<ADMEResource>();
         public List<ADMEResource> Partitions { get; set; } = new List<ADMEResource>();
 

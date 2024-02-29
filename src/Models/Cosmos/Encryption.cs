@@ -1,5 +1,7 @@
 ﻿namespace SubscriptionCleanupUtils.Models.Cosmos
 {
+#pragma warning disable CS8625, CS8618
+
     using System.Diagnostics.CodeAnalysis;
     using Newtonsoft.Json;
 
@@ -89,4 +91,6 @@
         [JsonProperty(PropertyName = "keySource")]
         public string KeySource { get; set; }
     }
+
+#pragma warning restore CS8625, CS8618
 }

@@ -18,7 +18,9 @@ namespace SubscriptionCleanupUtils.Domain
         {
             get
             {
+#pragma warning disable CS8603 
                 return _resourceGroup.Data.Id;
+#pragma warning restore CS8603 
             }
         }
 
@@ -66,6 +68,7 @@ namespace SubscriptionCleanupUtils.Domain
         public bool UpdateTags()
         {
             bool returnValue = false;
+#pragma warning disable CS0168 
             try
             {
                 var resp = this._resourceGroup.SetTags(this.Tags);
@@ -77,8 +80,9 @@ namespace SubscriptionCleanupUtils.Domain
             }
             catch(Exception ex)
             {
-                int x = 9;
+                // We don't have a handy logger here, but setting tags is not a show stopper.
             }
+#pragma warning restore CS0168 
             return returnValue;
         }
 

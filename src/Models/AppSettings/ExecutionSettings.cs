@@ -3,22 +3,26 @@
 //
 namespace SubscriptionCleanupUtils.Models.AppSettings
 {
-    /*
-        "ExpirationCheckService": {
-      "DaysToExpiration": 4,
-      "ExecuteCleanup" : false,
-      "TimeoutHours": 96
-    },
-    "ADMECleanup": {
-    "ExecuteCleanup" :  true,
-      "TimeoutHours": 24
-    }
-    */
-
     internal class BaseServiceSettings
     {
+        /// <summary>
+        /// Services check this flag, if set, it does not run the service
+        /// </summary>
+        public bool IsActive { get; set; } = false;
+        /// <summary>
+        /// For tasks that perform side effect moves with deletes, this flag 
+        /// represents the -WhatIf option. If set to false, side effects of deletions
+        /// should not occur.
+        /// </summary>
         public bool ExecuteCleanup { get; set; } = false;
+        /// <summary>
+        /// If running continuous, the number of hours to sleep between each run.
+        /// </summary>
         public int TimeoutHours { get; set; } = 24;
+        /// <summary>
+        /// Flag to indicate if the service should continue to run, or one and done. 
+        /// </summary>
+        public bool RunContinuous { get; set; } = false;
 
         public int GetTimeoutMilliseconds()
         {
@@ -39,6 +43,7 @@ namespace SubscriptionCleanupUtils.Models.AppSettings
         public const string SECTION = "ExecutionSettings";
 
         public BaseServiceSettings ADMECleanupService { get; set; } = new BaseServiceSettings();
+        public BaseServiceSettings LiveViewService { get; set; } = new BaseServiceSettings();
         public ExpirationService ExpirationService { get; set; } = new ExpirationService();
     }
 }

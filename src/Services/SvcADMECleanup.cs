@@ -19,7 +19,7 @@ namespace SubscriptionCleanupUtils.Services
         private readonly IConfiguration _configuration;
         private readonly IHostApplicationLifetime _applicationLifetime;
         private ServiceSettings ServiceSettings { get; set; }
-
+        private BackgroundServiceRunningState RunningState { get; set; }
         #endregion
 
         public SvcADMECleanup(
@@ -27,7 +27,8 @@ namespace SubscriptionCleanupUtils.Services
             IConfiguration configuration,
             IHostApplicationLifetime appLifetime,
             ITokenProvider tokenProvider,
-            IMapper mapper)
+            IMapper mapper,
+            BackgroundServiceRunningState runningState)
         {
             this._applicationLifetime = appLifetime;
             this._configuration = configuration;
@@ -36,19 +37,31 @@ namespace SubscriptionCleanupUtils.Services
             this._consoleLogger = logger;
 
             this.ServiceSettings = new ServiceSettings(this._configuration);
+            this.RunningState = runningState;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+#pragma warning disable CS8602 
+            if (this.ServiceSettings.ExecutionSettings.ADMECleanupService.IsActive == false)
+            {
+                _consoleLogger.LogInformation("ADME Cleanup Service is not active. Exiting...");
+                await this.RunningState.StopBackgroundService(this, stoppingToken, this._applicationLifetime);
+                return;
+            }
+#pragma warning restore CS8602 
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 _consoleLogger.LogInformation("Starting cleanup pass....");
 
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Most data goes to cosmos so we have history of what we've done. 
+#pragma warning disable CS8604 
                 IEventLogger eventLogger = new EventLogWriter(
                     this._tokenProvider.Credential,
                     this.ServiceSettings.EventLogSettings);
+#pragma warning restore CS8604 
                 eventLogger.Service = "SvcADMECleanup";
 
                 eventLogger.LogInfo("Starting execution");
@@ -71,20 +84,22 @@ namespace SubscriptionCleanupUtils.Services
                 /// impact on billing and is just good form to keep cleaned.
                 /// 
                 _consoleLogger.LogInformation("Preparing Cosmos connections...");
+#pragma warning disable CS8604 
                 Dictionary<string, CosmosConnection> cosmosConnections =
                     SvcUtilsCommon.CreateCosmosClients(
                     eventLogger,
                     this._tokenProvider,
                     this.ServiceSettings.CosmosSettings
                     );
+#pragma warning restore CS8604 
 
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Collect Subscriptions to be processed.
                 _consoleLogger.LogInformation("Get service tree listed subscription information...");
 
                 // ***IMPORTANT*** Currently limited ONLY to Engg sub
-                //string[] limitList = new string[] { "c99e2bf3-1777-412b-baba-d823676589c2" };
-                string[] limitList = null;
+                //string[] limitList = new string[] { "b0844137-4c2f-4091-b7f1-bc64c8b60e9c" };
+                string[]? limitList = null;
                 SubscriptionResults subscriptionResults = SvcUtilsCommon.GetNonProdServiceSubscriptions(
                     this._tokenProvider,
                     this._mapper,
@@ -120,17 +135,17 @@ namespace SubscriptionCleanupUtils.Services
                         .Where(x => x.IsValid ==  false )
                         .ToList();
 
-                    // ********** DEBUG **********
                     eventLogger.LogInfo($"Total ADME Instances found {instanceCollections.Count}");
                     if (invalidColletion.Count > 0)
                     {
-                        eventLogger.LogInfo("Invalid ADME Instances", invalidColletion.Select(x => x.Parent.Resource.Name).ToList());
+#pragma warning disable CS8602 
+                        eventLogger.LogInfo("Invalid ADME Instances", invalidColletion.Select(x => x.Parent.ResourceGroup.Name).ToList());
+#pragma warning restore CS8602 
                     }
                     if (abandoned.Count > 0)
                     {
-                        eventLogger.LogInfo("Abandoned ADME Instances", abandoned.Select(x => x.Resource.Name).ToList());
+                        eventLogger.LogInfo("Abandoned ADME Resources", abandoned.Select(x => x.ResourceGroup.Name).ToList());
                     }
-                    // ********** DEBUG **********
 
                     ////////////////////////////////////////////////////////////////////////////////////////
                     /// Collect data for instances that need investigation along with a list of raw 
@@ -138,67 +153,19 @@ namespace SubscriptionCleanupUtils.Services
                     /// 
                     ADMEResourceCleanupResults cleanupResults = this.GetCleanupResults(invalidColletion, admeResources);
 
-                    // ********** DEBUG **********
+                    // Abandoned have always presented as and ADMResource Partition, and ar not present in Kusto,
+                    // so if we have those add them its safe to just remove them.
+                    cleanupResults.DeleteList.AddRange(
+                        abandoned.Where(x => x.SubType == ADMESubscriptionParser.SubTypePartition)
+                    );
+
                     if (cleanupResults.DeleteList.Count > 0)
                     {
-                        eventLogger.LogInfo("Instances To Delete", cleanupResults.DeleteList.Select(x => x.Resource.Name).ToList());
+                        eventLogger.LogInfo("ResourceGroup To Delete", cleanupResults.DeleteList.Select(x => x.ResourceGroup.Name).ToList());
                     }
                     if  (cleanupResults.InvestigationList.Count > 0)
                     {
                         eventLogger.LogInfo("Instances To Investigate", cleanupResults.InvestigationList.Keys.Select(x => x.InstanceName).ToList());
-                    }
-                    // ********** DEBUG **********
-
-
-                    ////////////////////////////////////////////////////////////////////////////////////////
-                    /// For instances we need to investigate, this means they were found active in 
-                    /// Kusto, for each of these, clear out the compute and partition data from 
-                    /// Cosmos, delete the DNS records, if any, and add any resource groups to the list
-                    /// for deletion. 
-                    /// 
-                    List<AzureResourceGroup> cleanedUpInstanceGroups = new List<AzureResourceGroup>();
-                    if (cleanupResults.InvestigationList.Count > 0)
-                    {
-                        this._consoleLogger.LogInformation("Cleaning up {count} resources from Cosmos and DNS ", cleanupResults.InvestigationList.Count);
-
-                        // For the investgate list, can we clear out the DNS records?
-                        foreach (KeyValuePair<ADMEResourceCollection, List<ADMEResourcesDTO>> kvp in cleanupResults.InvestigationList)
-                        {
-                            // Add these groups to the list of those to wipe because they are no longer needed.
-                            cleanedUpInstanceGroups.Add(kvp.Key.Parent.Resource);
-                            kvp.Key.Partitions.Select(x => x.Resource).ToList().ForEach(x => cleanedUpInstanceGroups.Add(x));
-
-                            // If we do have a Kusto record, which we should, set instance and partition
-                            // data to deleted then clear out DNS settings.
-                            ADMEResourcesDTO? resourceData = kvp.Value.FirstOrDefault();
-                            if (resourceData != null)
-                            {
-                                try
-                                {
-                                    SvcUtilsCommon.ClearCosmosData(
-                                        eventLogger, 
-                                        cosmosConnections, 
-                                        resourceData);
-                                }
-                                catch(Exception ex)
-                                {
-                                    eventLogger.LogException($"Exception clearing Cosmos for {resourceData.InstanceName}", ex);
-                                }
-
-                                try 
-                                { 
-                                    SvcUtilsCommon.ClearDNSSettings(
-                                        this._tokenProvider,
-                                        this.ServiceSettings.DNSSettings,
-                                        eventLogger,
-                                        resourceData);
-                                }
-                                catch (Exception ex)
-                                {
-                                    eventLogger.LogException($"Exception clearing DNS for {resourceData.InstanceName}", ex);
-                                }
-                            }
-                        }
                     }
 
 
@@ -209,9 +176,20 @@ namespace SubscriptionCleanupUtils.Services
                     {
                         _consoleLogger.LogWarning("Execution state has been set to true, cleaning up resource groups.");
 
-                        List<AzureResourceGroup> deleteGroups = cleanupResults.DeleteList.Select(x => x.Resource).ToList();
+                        // For instances we need to investigate, this means they were found active in 
+                        // Kusto, for each of these, clear out the compute and partition data from 
+                        // Cosmos, delete the DNS records, if any, and add any resource groups to the list
+                        // for deletion. 
+                        List<AzureResourceGroup> cleanedUpInstanceGroups = this.CleanupInstanceResources(
+                            cleanupResults.InvestigationList,
+                            eventLogger,
+                            cosmosConnections);
+
+                        // Get the delete outright groups then add the ones where we cleaned up resources.
+                        List<AzureResourceGroup> deleteGroups = cleanupResults.DeleteList.Select(x => x.ResourceGroup).ToList();
                         deleteGroups.AddRange(cleanedUpInstanceGroups);
 
+                        // Then finally, delete them.
                         _consoleLogger.LogInformation("Deleting {count} resource groups as final step", deleteGroups.Count);
                         SvcUtilsCommon.DeleteResourceGroups(deleteGroups, eventLogger);
                     }
@@ -223,13 +201,86 @@ namespace SubscriptionCleanupUtils.Services
                 eventLogger.LogInfo("ADME Cleanup Service has completed successfully.");
                 eventLogger.Dispose();
 
-                // Wait a predetermined (configurable) amount of time befoe re-running the service or kill it with 
-                // this._applicationLifetime.StopApplication();
-                await Task.Delay(
-                    this.ServiceSettings.ExecutionSettings.ADMECleanupService.GetTimeoutMilliseconds(), 
-                    stoppingToken
-                    );
+                // If we are not running continuously, one off jobs, then kill the service.
+                if( this.ServiceSettings.ExecutionSettings.ADMECleanupService.RunContinuous == false)
+                {
+                    await this.RunningState.StopBackgroundService(this, stoppingToken, this._applicationLifetime);
+                    return;
+                }
+                else
+                {
+                    await Task.Delay(
+                        this.ServiceSettings.ExecutionSettings.ADMECleanupService.GetTimeoutMilliseconds(),
+                        stoppingToken
+                        );
+
+                }
             }
+        }
+
+        /// <summary>
+        /// For each instance that is invalid, check and update when neccesary the Cosmos records associated
+        /// with it and remove any DNS settings.
+        /// </summary>
+        /// <param name="invalidInstances"></param>
+        /// <param name="eventLogger"></param>
+        /// <param name="cosmosConnections"></param>
+        /// <returns></returns>
+        private List<AzureResourceGroup> CleanupInstanceResources(
+            Dictionary<ADMEResourceCollection, List<ADMEResourcesDTO>> invalidInstances,
+            IEventLogger eventLogger,
+            Dictionary<string, CosmosConnection> cosmosConnections
+            )
+        {
+            List<AzureResourceGroup> cleanedUpInstanceGroups = new List<AzureResourceGroup>();
+            if (invalidInstances.Count > 0)
+            {
+                this._consoleLogger.LogInformation("Cleaning up {count} resources from Cosmos and DNS ", invalidInstances.Count);
+
+                // For the investgate list, can we clear out the DNS records?
+                foreach (KeyValuePair<ADMEResourceCollection, List<ADMEResourcesDTO>> kvp in invalidInstances)
+                {
+                    // Add these groups to the list of those to wipe because they are no longer needed.
+#pragma warning disable CS8602 
+                    cleanedUpInstanceGroups.Add(kvp.Key.Parent.ResourceGroup);
+#pragma warning restore CS8602 
+                    kvp.Key.Partitions.Select(x => x.ResourceGroup).ToList().ForEach(x => cleanedUpInstanceGroups.Add(x));
+
+                    // If we do have a Kusto record, which we should, set instance and partition
+                    // data to deleted then clear out DNS settings.
+                    ADMEResourcesDTO? resourceData = kvp.Value.FirstOrDefault();
+                    if (resourceData != null)
+                    {
+                        try
+                        {
+                            SvcUtilsCommon.ClearCosmosData(
+                                eventLogger,
+                                cosmosConnections,
+                                resourceData);
+                        }
+                        catch (Exception ex)
+                        {
+                            eventLogger.LogException($"Exception clearing Cosmos for {resourceData.InstanceName}", ex);
+                        }
+
+                        try
+                        {
+#pragma warning disable CS8604 
+                            SvcUtilsCommon.ClearDNSSettings(
+                                this._tokenProvider,
+                                this.ServiceSettings.DNSSettings,
+                                eventLogger,
+                                resourceData);
+#pragma warning restore CS8604 
+                        }
+                        catch (Exception ex)
+                        {
+                            eventLogger.LogException($"Exception clearing DNS for {resourceData.InstanceName}", ex);
+                        }
+                    }
+                }
+            }
+            return cleanedUpInstanceGroups;
         }
 
         /// <summary>
@@ -279,7 +330,9 @@ namespace SubscriptionCleanupUtils.Services
                     {
                         // Clusters will be sorted out by the parent, partitions must
                         // be managed seperately. 
+#pragma warning disable CS8604
                         returnResults.DeleteList.Add(collection.Parent);
+#pragma warning restore CS8604
                         returnResults.DeleteList.AddRange(collection.Partitions);
                     }
                     else
@@ -289,11 +342,26 @@ namespace SubscriptionCleanupUtils.Services
                 }
                 else
                 {
+                    //  TODO: Remove by March 9 for Marija and Pritish
+#pragma warning disable CS8604, CS8602 
+                    bool lastDitchSaveForPritish = false;
+                    if(collection.ResourceType == ADMESubscriptionParser.SubTypeOneBox)
+                    {
+                        lastDitchSaveForPritish = collection.Parent.ResourceGroup.Tags.ContainsKey("ImABananna");
+                    }
                     // DCP or onebox, no record so a straight out delete
-                    returnResults.DeleteList.Add(collection.Parent);
+                    if( lastDitchSaveForPritish == false)
+                    {
+                        returnResults.DeleteList.Add(collection.Parent);
+                    }
+#pragma warning restore CS8604, CS8602
+                    //  TODO: Remove by March 9 for Marija and Pritish
+
+                    // REINSTATE AFTER MARCH 9: returnResults.DeleteList.Add(collection.Parent);
                 }
             }
             return returnResults;
         }
+
     }
 }

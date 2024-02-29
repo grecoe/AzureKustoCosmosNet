@@ -8,6 +8,7 @@ namespace SubscriptionCleanupUtils.Domain
     using Kusto.Data.Common;
     using Kusto.Ingest;
     using SubscriptionCleanupUtils.Domain.Interface;
+    using SubscriptionCleanupUtils.Models;
     using SubscriptionCleanupUtils.Models.AppSettings;
     using System.Text;
 
@@ -16,27 +17,27 @@ namespace SubscriptionCleanupUtils.Domain
         private readonly TokenCredential Credential;
         private readonly KustoConnectionStringBuilder KustoCSB;
         private bool Dispposed { get; set; } = false;
-        private EventLogSettings EventLogSettings { get; set; }
+        private KustoIngestSettings IngestSettings { get; set; }
         private IKustoIngestClient KustoIngestClient { get; set; }
         private KustoIngestionProperties IngestProperties { get; set; }
 
         public KustoIngest(
             TokenCredential tokenCredential,
-            EventLogSettings eventLogSettings
+            KustoIngestSettings ingestSettings
             )
         {
-            this.EventLogSettings = eventLogSettings;
+            this.IngestSettings = ingestSettings;
             this.Credential = tokenCredential;
 
             this.KustoCSB = new KustoConnectionStringBuilder(
-                this.EventLogSettings.IngestEndpoint,
-                this.EventLogSettings.Database)
+                this.IngestSettings.Endpoint,
+                this.IngestSettings.Database)
                 .WithAadAzureTokenCredentialsAuthentication(this.Credential);
 
             this.KustoIngestClient = KustoIngestFactory.CreateStreamingIngestClient(this.KustoCSB);
             this.IngestProperties = new KustoIngestionProperties(
-                this.EventLogSettings.Database,
-                this.EventLogSettings.Table)
+                this.IngestSettings.Database,
+                this.IngestSettings.Table)
             {
                 Format = DataSourceFormat.json,
                 IngestionMapping = new IngestionMapping
@@ -46,9 +47,9 @@ namespace SubscriptionCleanupUtils.Domain
             };
         }
 
-        public void StreamRecord(IKustoRecord record)
+        public void StreamRecords(List<IKustoRecord> records)
         {
-            using (Stream inputStream = CreateLogStream(record))
+            using (Stream inputStream = CreateLogStream(records))
             {
                 using (var ingestClient = KustoIngestFactory.CreateStreamingIngestClient(this.KustoCSB))
                 {
@@ -57,12 +58,15 @@ namespace SubscriptionCleanupUtils.Domain
             }
         }
 
-        private static Stream CreateLogStream(IKustoRecord record)
+        private static Stream CreateLogStream(List<IKustoRecord> records)
         {
             var ms = new MemoryStream();
             using (var tw = new StreamWriter(ms, Encoding.UTF8, 4096, true))
             {
-                tw.WriteLine(record.GetEntity());
+                foreach (IKustoRecord record in records)
+                {
+                    tw.WriteLine(record.GetEntity());
+                }
             }
             ms.Seek(0, SeekOrigin.Begin);
             return ms;
@@ -89,7 +93,6 @@ namespace SubscriptionCleanupUtils.Domain
                 if (this.KustoIngestClient != null)
                 {
                     this.KustoIngestClient.Dispose();
-                    this.KustoIngestClient = null;
                 }
             }
 

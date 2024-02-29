@@ -139,11 +139,13 @@ namespace SubscriptionCleanupUtils.Services
             IMapper mapper,
             ServiceSettings serviceSettings)
         {
+#pragma warning disable CS8602 
             KustoReader reader = new KustoReader(
                 tokenProvider.Credential,
                 mapper,
                 serviceSettings.KustoSettings.ADMEEndpoint,
                 serviceSettings.KustoSettings.ADMEDatabase);
+#pragma warning restore CS8602 
             return reader.ReadData<ADMEResourcesDTO>(ADMEResourcesDTO.QUERY);
         }
 
@@ -163,6 +165,7 @@ namespace SubscriptionCleanupUtils.Services
             ServiceSettings settings,
             string[]? limitIdList = null)
         {
+#pragma warning disable CS8602, CS8604 
             SubscriptionFactory factory = new SubscriptionFactory(
                 tokenProvider,
                 mapper,
@@ -170,6 +173,7 @@ namespace SubscriptionCleanupUtils.Services
                 settings.KustoSettings.ServiceTreeDatabase,
                 settings.ServiceTreeSettings
                 );
+#pragma warning restore CS8602, CS8604
 
 
             return factory.GetNonProdSubscriptions(limitIdList);
@@ -207,6 +211,13 @@ namespace SubscriptionCleanupUtils.Services
             }
         }
 
+        /// <summary>
+        /// From the configuration settings create the Cosmos clients being requested.
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="tokenProvider"></param>
+        /// <param name="settings"></param>
+        /// <returns></returns>
         public static Dictionary<string, CosmosConnection> CreateCosmosClients(
                 IEventLogger logger, 
                 ITokenProvider tokenProvider, 
@@ -237,6 +248,13 @@ namespace SubscriptionCleanupUtils.Services
         }
 
 
+        /// <summary>
+        /// Given an ADME ResourceGroup, search for any OEPResource or DataPartition data 
+        /// and force it all to Deleted status.
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="cosmosConnections"></param>
+        /// <param name="resourceData"></param>
         public static void ClearCosmosData(
             IEventLogger logger,
             Dictionary<string, CosmosConnection> cosmosConnections,
