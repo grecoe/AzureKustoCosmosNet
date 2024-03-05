@@ -11,12 +11,6 @@ The services included are listed below with their intended purpose. All configur
 
 > **NOTE:** This project comes complete with an ADX Dashboard, look in the dasbhoard folder for more information.
 
-## Design Overview
-
-![image](img/Overview.jpg)
-
-> The following sections define the two current services and the detail the stages they execute. Both services log to a separate Kusto cluster as a log for execution so that no matter who runs it or where, the logs can be captured.
-
 ## General Settings
 
 Go to the **Models/AppSettings** folder and read the Readme.md file for general setting information.
