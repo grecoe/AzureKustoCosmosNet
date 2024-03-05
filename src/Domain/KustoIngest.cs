@@ -9,7 +9,6 @@ namespace SubscriptionCleanupUtils.Domain
     using Kusto.Ingest;
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
-    using SubscriptionCleanupUtils.Models.AppSettings;
     using System.Text;
 
     internal class KustoIngest : IDisposable

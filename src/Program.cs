@@ -37,10 +37,12 @@ namespace SubscriptionCleanupUtils
             appModel.RegisterBackgroundService<SvcADMECleanup>();
             appModel.RegisterBackgroundService<SvcExpirationCheck>();
             appModel.RegisterBackgroundService<SvcLiveView>();
+            appModel.RegisterBackgroundService<SvcDNSCleanup>();
 
             builder.Services.AddHostedService<SvcADMECleanup>();
             builder.Services.AddHostedService<SvcExpirationCheck>();
             builder.Services.AddHostedService<SvcLiveView>();
+            builder.Services.AddHostedService<SvcDNSCleanup>();
 
             builder.Services.AddSingleton<SubscriptionCleanupUtils.Domain.Interface.ITokenProvider, TokenProvider>();
             builder.Services.AddSingleton<AutoMapper.IMapper>(mapper);

@@ -35,6 +35,13 @@ namespace SubscriptionCleanupUtils.Models.AppSettings
         public int DaysToExpiration { get; set; } = 4;
     }
 
+    internal class DNSCleanupService : BaseServiceSettings
+    {
+        public bool ResolveCnameOption { get; set; }
+        public bool UnmatchedARecordsOption { get; set; }
+        public bool FilterITInstancesOption { get; set; }
+    }
+
     /// <summary>
     /// Timing information for different processes
     /// </summary>
@@ -45,5 +52,6 @@ namespace SubscriptionCleanupUtils.Models.AppSettings
         public BaseServiceSettings ADMECleanupService { get; set; } = new BaseServiceSettings();
         public BaseServiceSettings LiveViewService { get; set; } = new BaseServiceSettings();
         public ExpirationService ExpirationService { get; set; } = new ExpirationService();
+        public DNSCleanupService DNSCleanupService { get; set; } = new DNSCleanupService();
     }
 }

@@ -32,7 +32,7 @@ namespace SubscriptionCleanupUtils.Services
         /// is located.</param>
         /// <param name="dnSEnvironment">Information about the DNS Zone in which to load up C and A recors. </param>
         /// <returns>A set of records, if found and no error, check for return.</returns>
-        private static DNSRecords? GetDNSFromCache(ITokenProvider tokenProvider, DNSEnvironment dnSEnvironment, IEventLogger logger)
+        public static DNSRecords? GetDNSFromCache(ITokenProvider tokenProvider, DNSEnvironment dnSEnvironment, IEventLogger logger)
         {
             DNSRecords? returnValue = null;
             if (SvcUtilsCommon.DNSRecordsCache.ContainsKey(dnSEnvironment))
