@@ -11,6 +11,12 @@ The services included are listed below with their intended purpose. All configur
 
 > **NOTE:** This project comes complete with an ADX Dashboard, look in the dasbhoard folder for more information.
 
+## Additional Concepts 
+
+- One and done services (which applies when all of them run once as a job) : see Models/BackgroundServiceRunningState
+  - Also see Program.cs and any of the services in how it's used.     
+- Caching strategy to share common, long operation, data across different services : see Services/Cache
+
 ## General Settings
 
 Go to the **Models/AppSettings** folder and read the Readme.md file for general setting information.
