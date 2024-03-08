@@ -7,6 +7,7 @@ namespace SubscriptionCleanupUtils.Services
     using SubscriptionCleanupUtils.Domain;
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
+    using SubscriptionCleanupUtils.Services.Cache;
 
     internal class SvcExpirationCheck : BackgroundService
     {
@@ -65,16 +66,20 @@ namespace SubscriptionCleanupUtils.Services
                 ////////////////////////////////////////////////////////////////////////////////////////
                 /// Collect Subscriptions to be processed.
                 _consoleLogger.LogInformation("Get service tree listed subscription information...");
-                string[]? limitList = null;
 
+                List<string> limitList = new List<string>();
+                ServiceCache.TokenProvider = this._tokenProvider;
+                ServiceCache.ServiceSettings = this.ServiceSettings;
+                ServiceCache.EventLogger = eventLogger;
+                ServiceCache.Mapper = this._mapper;
+                SubscriptionResults? subscriptionResults = ServiceCache.GetCachedValues<SubscriptionResults>(limitList);
 
-                SubscriptionResults subscriptionResults = SvcUtilsCommon.GetNonProdServiceSubscriptions(
-                    this._tokenProvider, 
-                    this._mapper,
-                    this.ServiceSettings,
-                    limitList
-                    );
-
+                if (subscriptionResults == null)
+                {
+                    eventLogger.LogError($"Unable to load subscription data for service {this.ServiceSettings.ServiceTreeSettings.ServiceId}");
+                    break;
+                }
+                
                 eventLogger.LogInfo("Options Subscription filter", limitList);
                 eventLogger.LogInfo("Reachable Subscriptions",
                     subscriptionResults.Subscriptions.Select(x => x.ServiceSubscriptionsDTO.SubscriptionName));

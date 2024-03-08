@@ -8,6 +8,7 @@ namespace SubscriptionCleanupUtils.Services
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
     using SubscriptionCleanupUtils.Models.Kusto;
+    using SubscriptionCleanupUtils.Services.Cache;
     using System.Collections.Generic;
 
     public class SvcADMECleanup : BackgroundService
@@ -99,13 +100,18 @@ namespace SubscriptionCleanupUtils.Services
 
                 // ***IMPORTANT*** Currently limited ONLY to Engg sub
                 //string[] limitList = new string[] { "b0844137-4c2f-4091-b7f1-bc64c8b60e9c" };
-                string[]? limitList = null;
-                SubscriptionResults subscriptionResults = SvcUtilsCommon.GetNonProdServiceSubscriptions(
-                    this._tokenProvider,
-                    this._mapper,
-                    this.ServiceSettings,
-                    limitList
-                    );
+                List<string> limitList = new List<string>();
+                ServiceCache.TokenProvider = this._tokenProvider;
+                ServiceCache.ServiceSettings = this.ServiceSettings;
+                ServiceCache.EventLogger = eventLogger;
+                ServiceCache.Mapper = this._mapper;
+                SubscriptionResults? subscriptionResults = ServiceCache.GetCachedValues<SubscriptionResults>(limitList);
+
+                if(subscriptionResults == null)
+                {
+                    eventLogger.LogError($"Unable to load subscription data for service {this.ServiceSettings.ServiceTreeSettings.ServiceId}");
+                    break;
+                }
 
                 eventLogger.LogInfo("Options Subscription filter", limitList);
                 eventLogger.LogInfo("Reachable Subscriptions", 
@@ -253,7 +259,7 @@ namespace SubscriptionCleanupUtils.Services
                     {
                         try
                         {
-                            SvcUtilsCommon.ClearCosmosData(
+                            SvcUtilsCommon.ClearADMEInstanceCosmosData(
                                 eventLogger,
                                 cosmosConnections,
                                 resourceData);
@@ -266,7 +272,7 @@ namespace SubscriptionCleanupUtils.Services
                         try
                         {
 #pragma warning disable CS8604 
-                            SvcUtilsCommon.ClearDNSSettings(
+                            SvcUtilsCommon.ClearADMEInstanceDNSSettings(
                                 this._tokenProvider,
                                 this.ServiceSettings.DNSSettings,
                                 eventLogger,

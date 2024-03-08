@@ -33,9 +33,9 @@ namespace SubscriptionCleanupUtils.Models.Kusto
         public string Environment { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
 
-        public static string GetServiceTreeQuery(ServiceTreeSettings settings)
+        public static string GetServiceTreeQuery(string serviceTreeServiceId)
         {
-            string body = string.Format(QUERY, settings.ServiceId);
+            string body = string.Format(QUERY, serviceTreeServiceId);
             return QUERYHEADER + body;
         }
     }

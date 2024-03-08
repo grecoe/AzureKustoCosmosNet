@@ -11,6 +11,7 @@ namespace SubscriptionCleanupUtils.Domain
 
     internal class SubscriptionResults
     {
+        public DateTime Expires { get; set; } = DateTime.Now.AddMinutes(30);
         public List<AzureSubscription> Subscriptions = new List<AzureSubscription>();
         public List<ServiceSubscriptionsDTO> UnreachableSubscriptions = new List<ServiceSubscriptionsDTO>();
     }
@@ -21,20 +22,20 @@ namespace SubscriptionCleanupUtils.Domain
         private readonly IMapper _mapper;
         private readonly string _serviceTreeConnection;
         private readonly string _serviceTreeDatabase;
-        private readonly ServiceTreeSettings _serviceTreeServiceIdentity;
+        private readonly string _serviceTreeServiceId;
 
         public SubscriptionFactory(
             ITokenProvider tokenProvider, 
             IMapper mapper,
             string serviceTreeKustoConnection,
             string serviceTreeKustoDatabase,
-            ServiceTreeSettings serviceTreeServiceIdentity)
+            string serviceTreeServiceId)
         {
             _tokenProvider = tokenProvider;
             _mapper = mapper;
             _serviceTreeConnection = serviceTreeKustoConnection;
             _serviceTreeDatabase = serviceTreeKustoDatabase;
-            _serviceTreeServiceIdentity = serviceTreeServiceIdentity;
+            _serviceTreeServiceId = serviceTreeServiceId;
         }
 
         /// <summary>
@@ -65,7 +66,7 @@ namespace SubscriptionCleanupUtils.Domain
                 this._serviceTreeDatabase);
 
             // Get all subscriptions for the service id
-            string query = ServiceSubscriptionsDTO.GetServiceTreeQuery(this._serviceTreeServiceIdentity);
+            string query = ServiceSubscriptionsDTO.GetServiceTreeQuery(this._serviceTreeServiceId);
             List<ServiceSubscriptionsDTO> subscriptions = reader.ReadData<ServiceSubscriptionsDTO>(query);
 
             // Filter down to only active non-prod subs

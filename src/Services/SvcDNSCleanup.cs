@@ -7,6 +7,7 @@
     using SubscriptionCleanupUtils.Domain.Interface;
     using SubscriptionCleanupUtils.Models;
     using SubscriptionCleanupUtils.Models.AppSettings;
+    using SubscriptionCleanupUtils.Services.Cache;
     using System.Collections.Generic;
     using System.Net.Sockets;
     using System.Text.RegularExpressions;
@@ -71,20 +72,25 @@
             {
                 this._consoleLogger.LogInformation("Searching DNS Records");
 
-                DNSEnvironment? nonProdEnvironment = this.ServiceSettings.DNSSettings.Environments.Where(x => x.Environments.Contains("Dogfood")).FirstOrDefault();
+                DNSEnvironment? nonProdEnvironment = this.ServiceSettings.DNSSettings.Environments
+                    .Where(x => x.Environments.Contains("Dogfood"))
+                    .FirstOrDefault();
                 if (nonProdEnvironment == null)
                 {
                     eventLogger.LogError("Unable to locate Dogfood DNS Zone");
                 }
 
-                // Get DNS Records
-                DNSRecords? nonProdDnsRecords = SvcUtilsCommon.GetDNSFromCache(
-                    this._tokenProvider,
-                    nonProdEnvironment,
-                    eventLogger);
+                ServiceCache.TokenProvider = this._tokenProvider;
+                ServiceCache.EventLogger = eventLogger;
+                DNSRecords? nonProdDnsRecords  = ServiceCache.GetCachedValues<DNSRecords>(nonProdEnvironment);
+                if(nonProdDnsRecords == null)
+                {
+                    eventLogger.LogError($"Unable to load DNS from {nonProdEnvironment.ZoneName}");
+                    break;
+                }
+
                 Dictionary<string, List<ArmResource>> dnsResourceList = ParseDNSRecords(nonProdDnsRecords);
                 List<ArmResource> recordsToDelete = new List<ArmResource>();
-
 
                 if (this.ServiceSettings.ExecutionSettings.DNSCleanupService.ResolveCnameOption)
                 {
